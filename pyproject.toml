@@ -1,0 +1,24 @@
+[project]
+name = "fickle-ferrets"
+version = "0.1.0"
+description = "Fickle Ferrets API - Share words of affirmation with our fickle ferrets"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]>=0.118.3",
+    "httpx>=0.27.0",
+    "sqlalchemy>=2.0.0",
+]
+
+[project.scripts]
+post_affirm = "scripts.post_affirm:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["scripts"]
+
+[tool.uv]
+package = true

@@ -1,0 +1,20 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Database
+*.db
+*.db-journal
+
+# Internal assignment materials (don't share with candidates)
+INTERVIEWER_GUIDE.md
+ASSIGNMENT_README.md
+*.plan.md
+REFACTORING_SUMMARY.md
