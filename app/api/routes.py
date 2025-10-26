@@ -1,23 +1,30 @@
 """API route handlers"""
-from fastapi import APIRouter, status, BackgroundTasks, Depends
+from fastapi import APIRouter, status, BackgroundTasks, Depends, HTTPException
 from datetime import datetime
 from sqlalchemy.orm import Session
-import uuid
 
 from app.schemas.models import (
     Message,
     AffirmationResponse,
     WebhookCallback,
     AffirmationHistoryItem,
-    ChampionPhraseResponse
+    ChampionPhraseResponse,
+    ExperimentCreate,
+    ExperimentResponse
 )
 from app.services.ferret_service import (
-    process_affirmation_and_callback,
+    get_words_of_affirmation,
+    update_affirmation_result,
     create_affirmation_record,
-    update_affirmation_result
+    process_affirmation_and_callback
+)
+from app.services.experiment_service import (
+    create_experiment,
+    execute_experiment,
+    build_experiment_response
 )
 from app.db.session import get_db
-from app.db.models import AffirmationResult, ChampionPhrase
+from app.db.models import AffirmationResult, ChampionPhrase, Experiment, ExperimentStatus
 
 router = APIRouter()
 
@@ -53,10 +60,8 @@ async def share_affirmation(
     db: Session = Depends(get_db)
 ) -> AffirmationResponse:
     """Share the champion affirmation with our fickle ferrets - returns immediately and processes asynchronously"""
-    # Get current champion phrase from database
-    champion = db.query(ChampionPhrase).filter(ChampionPhrase.id == 1).first()
-    words_of_affirmation = champion.phrase
-    
+    words_of_affirmation = get_words_of_affirmation(db)
+
     # Generate unique affirmation ID
     affirmation_id = str(uuid.uuid4())
     
@@ -76,7 +81,7 @@ async def share_affirmation(
     
     print(f"[AFFIRMATION] 🦦 New affirmation received! ID: {affirmation_id}")
     print(f"[AFFIRMATION] 📝 Using champion phrase: '{words_of_affirmation}'")
-    
+
     # Return immediately with affirmation ID
     return AffirmationResponse(
         affirmation_id=affirmation_id,
@@ -104,7 +109,7 @@ async def get_affirmation_history(
     results = db.query(AffirmationResult).order_by(
         AffirmationResult.created_at.desc()
     ).limit(limit).all()
-    
+
     # Convert to response models
     return [
         AffirmationHistoryItem(
@@ -116,4 +121,66 @@ async def get_affirmation_history(
         )
         for result in results
     ]
+
+
+@router.post("/experiments", response_model=ExperimentResponse, status_code=status.HTTP_202_ACCEPTED)
+async def create_new_experiment(
+    experiment: ExperimentCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+) -> ExperimentResponse:
+    """Create a new A/B test experiment - auto-activates and runs if no other experiment is active
+    Variant A is automatically set to the current champion phrase"""
+    # Check if there's already an active experiment
+    active_experiment = db.query(Experiment).filter(Experiment.status == ExperimentStatus.ACTIVE.value).first()
+
+    if active_experiment:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"An experiment is already active: '{active_experiment.name}' (ID: {active_experiment.id}). Please wait for it to complete before creating a new one."
+        )
+
+    new_experiment = create_experiment(
+        db=db,
+        name=experiment.name,
+        variant_b_phrase=experiment.variant_b_phrase,
+        target_runs=experiment.target_runs
+    )
+    # Automatically execute the experiment in the background
+    background_tasks.add_task(execute_experiment, new_experiment.id, db)
+    print(f"[EXPERIMENT] 🎬 Queued automatic execution for experiment '{new_experiment.name}'")
+
+    return build_experiment_response(new_experiment)
+
+
+@router.get("/experiments", response_model=list[ExperimentResponse])
+async def list_experiments(
+    status_filter: str | None = None,
+    db: Session = Depends(get_db)
+) -> list[ExperimentResponse]:
+    """List all experiments, optionally filtered by status (active, completed)"""
+    query = db.query(Experiment)
+
+    if status_filter:
+        query = query.filter(Experiment.status == status_filter)
+
+    experiments = query.order_by(Experiment.created_at.desc()).all()
+
+    return [build_experiment_response(exp) for exp in experiments]
+
+
+@router.get("/experiments/{experiment_id}", response_model=ExperimentResponse)
+async def get_experiment(
+    experiment_id: str,
+    db: Session = Depends(get_db)
+) -> ExperimentResponse:
+    """Get details for a specific experiment, including results if completed"""
+    experiment = db.query(Experiment).filter(Experiment.id == experiment_id).first()
+
+    if not experiment:
+        raise HTTPException(status_code=404, detail=f"Experiment {experiment_id} not found")
+
+    return build_experiment_response(experiment)
+
+
 

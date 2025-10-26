@@ -1,6 +1,7 @@
 """Pydantic models for request/response validation"""
 from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import Literal
 
 
 class Message(BaseModel):
@@ -46,4 +47,30 @@ class AffirmationHistoryItem(BaseModel):
     
     class Config:
         from_attributes = True  # Enables compatibility with SQLAlchemy models
+
+
+class ExperimentCreate(BaseModel):
+    """Request model for creating a new A/B test experiment"""
+    name: str = Field(..., description="Name/description of the experiment")
+    variant_b_phrase: str = Field(..., description="New phrase to test against current champion")
+    target_runs: int = Field(default=100, ge=1, description="Number of affirmations to run for this experiment")
+
+
+class ExperimentResponse(BaseModel):
+    """Response model for experiment data with calculated win rates"""
+    id: str
+    name: str
+    variant_a_phrase: str
+    variant_b_phrase: str
+    status: Literal["active", "completed"]
+    target_runs: int
+    created_at: datetime
+    completed_at: datetime | None
+    winning_variant: Literal["A", "B"] | None
+    variant_a_wins: int | None
+    variant_b_wins: int | None
+    variant_a_total: int | None
+    variant_b_total: int | None
+    variant_a_win_rate: float | None
+    variant_b_win_rate: float | None
 
