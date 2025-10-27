@@ -41,10 +41,10 @@ def get_words_of_affirmation(db: Session) -> str:
 def create_affirmation_record(
     affirmation_id: str,
     words_of_affirmation: str,
-    experiment_id: str | None = None
+    db: Session,
+    experiment_id: str | None = None,
 ) -> None:
     """Create initial database record for new affirmation"""
-    db = SessionLocal()
     try:
         # Create a temporary record with joy_sparked=False (will be updated later)
         db_affirmation = AffirmationResult(
@@ -60,13 +60,10 @@ def create_affirmation_record(
     except Exception as e:
         print(f"[DATABASE] ❌ Error creating affirmation record: {e}")
         db.rollback()
-    finally:
-        db.close()
 
 
-def update_affirmation_result(affirmation_id: str, joy_sparked: bool) -> None:
+def update_affirmation_result(affirmation_id: str, joy_sparked: bool, db: Session) -> None:
     """Update affirmation record with ferret reaction result"""
-    db = SessionLocal()
     try:
         db_affirmation = db.query(AffirmationResult).filter(
             AffirmationResult.affirmation_id == affirmation_id
@@ -82,8 +79,6 @@ def update_affirmation_result(affirmation_id: str, joy_sparked: bool) -> None:
     except Exception as e:
         print(f"[DATABASE] ❌ Error updating affirmation result: {e}")
         db.rollback()
-    finally:
-        db.close()
 
 
 async def process_affirmation_and_callback(affirmation_id: str, words_of_affirmation: str, webhook_url: str) -> None:

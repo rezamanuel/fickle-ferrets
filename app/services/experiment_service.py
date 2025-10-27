@@ -137,7 +137,8 @@ async def execute_experiment(experiment_id: str, db: Session) -> None:
         create_affirmation_record(
             affirmation_id=affirmation_id,
             words_of_affirmation=phrase,
-            experiment_id=experiment_id
+            experiment_id=experiment_id,
+            db=db
         )
 
         # Process affirmation with ferrets

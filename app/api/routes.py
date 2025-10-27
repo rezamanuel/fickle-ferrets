@@ -42,14 +42,14 @@ async def health_check() -> dict[str, str]:
 
 
 @router.post("/webhook/ferret-reaction")
-async def webhook_ferret_reaction(callback: WebhookCallback) -> dict[str, str]:
+async def webhook_ferret_reaction(callback: WebhookCallback, db: Session = Depends(get_db)) -> dict[str, str]:
     """Webhook endpoint to receive ferret joy reactions"""
     print(f"[WEBHOOK] 📬 Received ferret reaction for affirmation {callback.affirmation_id}")
     print(f"[WEBHOOK] 🦦 Ferret Response: {'✨ JOY SPARKED!' if callback.joy_sparked else '😑 Unimpressed.'}")
     print(f"[WEBHOOK] ⏰ Timestamp: {callback.timestamp}")
     
     # Update database with ferret reaction
-    update_affirmation_result(callback.affirmation_id, callback.joy_sparked)
+    update_affirmation_result(callback.affirmation_id, callback.joy_sparked, db=db)
     
     return {"status": "received", "affirmation_id": callback.affirmation_id}
 
@@ -66,7 +66,7 @@ async def share_affirmation(
     affirmation_id = str(uuid.uuid4())
     
     # Create database record for this affirmation
-    create_affirmation_record(affirmation_id, words_of_affirmation)
+    create_affirmation_record(affirmation_id, words_of_affirmation, db)
     
     # Construct webhook URL (assuming localhost for development)
     webhook_url = "http://localhost:8000/webhook/ferret-reaction"
