@@ -64,6 +64,18 @@ Assumptions:
   - I modified the /affirmation endpoint to still switch to 50/50 while an experiment is running, but I opted to call its underlying service layer directly for the /experiment endpoint instead of calling the externally facing api.
   
    I think this makes the logic cleaner and easier to maintain. As a follow up, I would recommend actually not having the /affirmation endpoint switch to 50/50, since our company mission is to deliver joy to ferrets. Instead, I'd recommend using the best champion phrase so far, not whatever we happen to be testing at the moment in an experiment. This approach will result in more overall ferret joy.
+
+ - update 10/27: It is now a day past the official "time of submission":
+    Woke up this morning and for some reason was thinking about this assignment, went back and double checked the code. I noticed that we were opening a new db session every time, so I updated it to use a dependency injection instead of just opening and closing the session on every call to the update_affirmation_result in ferret_service.py
+
+    - I probably should have some way to capture when the process_affirmation_and_callback returns an error or when the external API returns an error and record the affirmation result as invalid. I saw it happen when I had 1000 runs per experiment, I would implement that if I had more time.
+
+   - If I had more time and we expected a very high volume of DB transactions, I might propose using an async DB with sqlalchemy's async extensions. This will make calls to the database async / awaitable so that we don't use up the threadpool bandwidth; but its kind of overkill for this use case and the assignment said not to worry about prod.
+
+   - If we want to support queuing experiments, we need to change the way the POST experiments endpoint works.
+
+   Hope it was okay to improve my solution after the the deadline -- sometimes fresh eyes can be helpful, and I figured since it's before 9AM Monday no one has checked my code yet. That being said, I wanted to be upfront about the extra time pass I took after submitting. 
+  
    
    Let me know your thoughts!
 
